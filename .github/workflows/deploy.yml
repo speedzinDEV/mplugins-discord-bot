@@ -1,0 +1,65 @@
+name: Deploy mPlugins Discord Bot
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch: {}
+
+jobs:
+  test:
+    name: Instalar e testar
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Configurar Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '18'
+          cache: 'npm'
+
+      - name: Instalar dependencias (npm ci)
+        run: npm ci
+
+      - name: Verificar sintaxe de todos os arquivos (build leve)
+        run: |
+          find src -name "*.js" -print0 | xargs -0 -n1 node --check
+
+      - name: Rodar testes offline (sem Discord/Postgres reais)
+        run: |
+          node test/permissionService.test.js
+          node test/moderationService.test.js
+          node test/ticketService.test.js
+
+  deploy:
+    name: Deploy na Oracle Cloud
+    needs: test
+    runs-on: ubuntu-latest
+    if: github.ref == 'refs/heads/main' && github.event_name != 'pull_request'
+    steps:
+      - name: Deploy via SSH (executa scripts/deploy.sh no servidor)
+        uses: appleboy/ssh-action@v1.0.3
+        with:
+          host: ${{ secrets.ORACLE_HOST }}
+          username: ${{ secrets.ORACLE_USER }}
+          port: ${{ secrets.ORACLE_PORT }}
+          key: ${{ secrets.ORACLE_SSH_KEY }}
+          # Nenhum secret e impresso: o proprio deploy.sh nao loga
+          # variaveis sensiveis, e a conexao SSH usa a chave privada
+          # gerenciada pelo GitHub Secrets, nunca exposta no log do workflow.
+          script: |
+            set -e
+            cd /opt/mplugins-platform/mplugins-discord-bot
+            bash scripts/deploy.sh
+
+      - name: Resultado
+        if: success()
+        run: echo "Deploy concluido. O bot deve estar online (ver healthcheck dentro de scripts/deploy.sh)."
+
+      - name: Falha no deploy
+        if: failure()
+        run: |
+          echo "O deploy falhou. scripts/deploy.sh ja tenta reverter automaticamente no servidor."
+          echo "Verifique os logs do servidor (pm2 logs mplugins-discord-bot) e o commit atual em .deploy/rollback_commit."
+          exit 1

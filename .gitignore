@@ -1,40 +1,8 @@
-# =========================================
-# mPlugins Discord Bot - .gitignore
-# =========================================
-
-# Segredos - NUNCA versionar
+node_modules/
 .env
 .env.*
 !.env.example
-
-# Dependencias
-node_modules/
-
-# Logs
 logs/
 *.log
 npm-debug.log*
-
-# Build / artefatos
-dist/
-build/
-
-# Dados locais / cache
-data/
-.npm/
-coverage/
-
-# PM2 (runtime, nao configuracao)
-.pm2/
-
-# Sistema operacional / editores
 .DS_Store
-Thumbs.db
-*.swp
-*~
-
-# Chaves e certificados - NUNCA versionar
-*.pem
-*.key
-id_rsa
-id_rsa.pub
